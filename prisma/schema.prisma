@@ -1,0 +1,67 @@
+// Smart AI Calendar - Prisma schema
+// SQLite local database storing calendar events and reminders.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Event {
+  id              String   @id @default(cuid())
+  title           String
+  description     String?
+  location        String?
+  startAt         DateTime
+  endAt           DateTime
+  allDay          Boolean  @default(false)
+  color           String   @default("emerald")
+  reminderMinutes Int      @default(15)
+  sourceText      String?
+  emailRecipient  String?
+  emailSent       Boolean  @default(false)
+  emailSentAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  reminders Reminder[]
+
+  @@index([startAt])
+  @@index([endAt])
+  @@index([emailSent, emailRecipient])
+}
+
+model Reminder {
+  id        String   @id @default(cuid())
+  eventId   String
+  remindAt  DateTime
+  delivered Boolean  @default(false)
+  ackedAt   DateTime?
+  createdAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([remindAt])
+  @@index([delivered])
+}
+
+/// Generic key-value store for app settings (SMTP config, etc.).
+/// One row per setting key; value is a JSON string.
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+/// Stores web-push subscriptions so the server can send push notifications
+/// to subscribed browsers/devices (for reminders when the PWA is backgrounded).
+model PushSubscription {
+  id        String   @id @default(cuid())
+  endpoint  String   @unique
+  keys      String   // JSON string of { p256dh, auth }
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
